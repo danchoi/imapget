@@ -1,0 +1,134 @@
+
+import Control.Arrow                   ( second )
+import Control.Concurrent              ( forkIO, threadDelay )
+import Control.Exception               ( mask_ )
+import Control.Monad                   ( when )
+import qualified Data.ByteString as B  ( ByteString )
+import qualified Data.ByteString.Char8 as C ( ByteString, putStrLn )
+import Data.Char                       ( isDigit )
+import Network.HaskellNet.IMAP.Connection as I  ( IMAPConnection )
+import Network.HaskellNet.IMAP   as I  ( list, select, search, SearchQuery(..), fetch
+                                       , connectIMAPPort, login 
+                                       )
+import Network.Socket            as S  ( HostName, PortNumber )
+import System.Directory                ( canonicalizePath )
+import System.Environment              ( getArgs )
+import System.Exit                     ( exitFailure )
+import System.IO                       ( Handle )
+import System.IO.Error                 ( isDoesNotExistError )
+
+import SSLWrap                         ( mapSSL )
+
+
+main :: IO ()
+main = do
+  let config_file = "config.txt"
+      parseConfig = map (second (drop 1) . break (=='=')) . lines
+      defaultConfig = unlines 
+                        [ "hostname=imap.gmail.com"
+                        , "port=993"
+                        , "username=somebody@gmail.com"
+                        , "passwd=something"
+                        , "ssl_wrap_port=3004"
+                        , "cafile=/etc/ssl/certs/ca-certificates.crt" 
+                        ]
+  opts <- catch (fmap parseConfig $ readFile config_file)$ \e -> do
+            when (isDoesNotExistError e)$ do
+                writeFile config_file defaultConfig
+                putStrLn$ unlines 
+                  [ ""
+                  , "Thanks for using imapget!"
+                  , ""
+                  , "You need to edit a configuration file to specify where to connect"
+                  , "and which username and password to use."
+                  , ""
+                  , "I just created a default ./"++config_file++" file."
+                  , "Please edit it to set your options."
+                  ]
+            exitFailure
+
+  let readConfig name action = maybe (putStrLn$ "error: missing "++name++" option from "++config_file) action$ lookup name opts
+
+  readConfig "hostname"$ \hostname ->
+   readConfig "port"$ \port ->
+    readConfig "username"$ \username ->
+     readConfig "passwd"$ \passwd ->
+      readConfig "ssl_wrap_port"$ \ssl_wrap_port -> 
+        readConfig "cafile"$ \cafile -> do
+
+  args <- getArgs
+
+  case args of
+    ["list"] | all isDigit port ->
+         main' IMAPConf 
+                { icHostname = hostname
+                , icPort = fromIntegral (read port :: Int)
+                , icUsername = username 
+                , icPasswd = passwd 
+                , icSSLWrapPort = fromIntegral (read ssl_wrap_port :: Int)
+                , cafile = cafile
+                } 
+                Nothing
+    ["fetch",label] | all isDigit port ->
+         main' IMAPConf 
+                { icHostname =hostname
+                , icPort = fromIntegral (read port :: Int)
+                , icUsername = username 
+                , icPasswd = passwd 
+                , icSSLWrapPort = fromIntegral (read ssl_wrap_port :: Int)
+                , cafile = cafile
+                }
+                (Just label)
+    _ -> putStrLn "USAGE: imapget [list|fetch label]"
+
+
+type UserName = String
+type Password = String
+type Label = String
+
+data IMAPConf = IMAPConf 
+    { icHostname :: S.HostName
+    , icPort :: S.PortNumber
+    , icUsername :: UserName
+    , icPasswd :: Password
+    , icSSLWrapPort :: S.PortNumber
+    , cafile :: String
+    }
+
+main' :: IMAPConf -> Maybe Label -> IO ()
+main' conf mlabel = do 
+  case mlabel of
+    Nothing -> do
+        withIMAP conf$ \ic -> do
+            putStrLn$ "Fetching mailbox ..."
+            I.list ic >>= mapM_ (putStrLn . snd)
+    Just label -> getEmails conf label C.putStrLn 
+
+
+getEmails :: IMAPConf -> Label -> (B.ByteString -> IO a) -> IO ()
+getEmails c label f = withIMAP c$ \ic -> do
+  putStrLn$ "Selecting "++label++" ..."
+  I.select ic label
+  putStrLn$ "Retrieving "++label++" ..."
+  I.search ic [ALLs]
+     >>= mapM_ (\uid -> I.fetch ic uid >>= f)
+       
+
+
+withIMAP :: IMAPConf -> (I.IMAPConnection Handle -> IO a) -> IO a
+withIMAP c action = do
+  -- launch thread for wrapping tcp with SSL
+  cafilePath <- canonicalizePath (cafile c)
+  putStrLn cafilePath
+  -- _ <- mask_$ forkIO$ mapSSL cafilePath (icSSLWrapPort c) (icHostname c) (icPort c)
+  _ <- mask_$ forkIO$ mapSSL cafilePath (icSSLWrapPort c) (icHostname c) (icPort c)
+  
+  -- start imap communication
+  threadDelay$ 500*1000
+  putStrLn$ "Connecting to "++icHostname c++":"++show (icPort c)++" (wrapping with ssl through localhost:"++show (icSSLWrapPort c)++") ..."
+  ic <- connectIMAPPort "localhost" (icSSLWrapPort c)
+  putStrLn$ "Authenticating user "++icUsername c++" ..."
+  I.login ic (icUsername c) (icPasswd c)
+  action ic
+
+

@@ -111,7 +111,9 @@ getEmails c label f = withIMAP c$ \ic -> do
   I.select ic label
   putStrLn$ "Retrieving "++label++" ..."
   I.search ic [ALLs]
-     >>= mapM_ (\uid -> I.fetch ic uid >>= f)
+     -- >>= mapM_ (\uid -> I.fetch ic uid >>= f)
+     -- TODO parameterize this fetch stuff to work with range of Vmail style command
+     >>= mapM_ (\uid -> putStrLn $ show uid)
        
 
 

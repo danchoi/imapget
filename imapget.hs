@@ -47,6 +47,7 @@ main = do
                   ]
             exitFailure
 
+  {- TODO Where did this repetition come from? Clean up -}
   let readConfig name action = maybe (putStrLn$ "error: missing "++name++" option from "++config_file) action$ lookup name opts
 
   readConfig "hostname"$ \hostname ->

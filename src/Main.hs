@@ -96,13 +96,15 @@ data IMAPConf = IMAPConf
     , cafile :: String
     } deriving (Show)
 
+-- bad way to do different commands
 main' :: IMAPConf -> Maybe Label -> IO ()
 main' conf mlabel = do 
   case mlabel of
     Nothing -> do
         putStrLn$ "Fetching mailboxes ..."
         withIMAP conf$ \ic -> do
-            I.list ic >>= mapM_ (putStrLn . snd)
+            I.list ic >>= mapM_ (putStrLn . show ) -- snd 
+
     Just label -> do
         putStrLn $ "Getting label " ++ label
         getEmails conf label C.putStrLn 
@@ -125,8 +127,9 @@ withIMAP c action = do
   -- launch thread for wrapping tcp with SSL
   cafilePath <- canonicalizePath (cafile c)
   putStrLn $ "Using cafile: "++cafilePath
-  -- _ <- mask_$  mapSSL cafilePath (icSSLWrapPort c) (icHostname c) (icPort c)
-  _ <- mask_$ forkIO$ mapSSL cafilePath (icSSLWrapPort c) (icHostname c) (icPort c)
+
+  -- _ <- mask_ $ forkIO $ mapSSL cafilePath (icSSLWrapPort c) (icHostname c) (icPort c)
+  forkIO $ mapSSL cafilePath (icSSLWrapPort c) (icHostname c) (icPort c)
   
   -- start imap communication
   threadDelay$ 500*1000

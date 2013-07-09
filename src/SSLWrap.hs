@@ -25,33 +25,31 @@ mapSSL cafile in_port out_host out_port = withSocketsDo$ withOpenSSL$ do
       (N.listenOn (PortNumber in_port))
       sClose
       $ \sockin -> do
-    (h,_,_) <- N.accept sockin
-    I.hSetBuffering h I.NoBuffering
-    bracketOnError
-      (socket AF_INET Stream defaultProtocol)
-      sClose
-      $ \sout -> do
-    he <- getHostByName out_host
-    S.connect sout (SockAddrInet (fromIntegral out_port) (hostAddress he))
+        (h,_,_) <- N.accept sockin
+        I.hSetBuffering h I.NoBuffering
+        bracketOnError
+          (socket AF_INET Stream defaultProtocol)
+          sClose
+          $ \sout -> do
+            he <- getHostByName out_host
+            S.connect sout (SockAddrInet (fromIntegral out_port) (hostAddress he))
 
-    ctx <- SSL.context
-    SSL.contextSetDefaultCiphers ctx
-    SSL.contextSetVerificationMode ctx (SSL.VerifyPeer True False Nothing)
-    SSL.contextSetCAFile ctx cafile
-    bracket
-      (SSL.connection ctx sout)
-      (flip SSL.shutdown SSL.Bidirectional)
-      $ \ssl -> do
-    SSL.connect ssl
-  
-    bracket
-      (liftM2 (,) (myForkIO (readWriteLoop h ssl)) (myForkIO (readWriteLoop0 h ssl)))
-      (\((_,t0),(_,t1)) -> killThread t0 >> killThread t1)
-      $ \((m0,_),(m1,_)) -> do
-
-    takeMVar m0
-    takeMVar m1
-    
+            ctx <- SSL.context
+            SSL.contextSetDefaultCiphers ctx
+            SSL.contextSetVerificationMode ctx (SSL.VerifyPeer True False Nothing)
+            SSL.contextSetCAFile ctx cafile
+            bracket
+              (SSL.connection ctx sout)
+              (flip SSL.shutdown SSL.Bidirectional)
+              $ \ssl -> do
+                SSL.connect ssl
+                bracket
+                  (liftM2 (,) (myForkIO (readWriteLoop h ssl)) (myForkIO (readWriteLoop0 h ssl)))
+                  (\((_,t0),(_,t1)) -> killThread t0 >> killThread t1)
+                  $ \((m0,_),(m1,_)) -> do
+                    takeMVar m0
+                    takeMVar m1
+            
   where
     readWriteLoop h ssl = do
        b <- B.hGetSome h 1024 

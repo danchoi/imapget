@@ -57,6 +57,8 @@ Executable imapget
                   , base64-string
                   , Crypto > 4.2.1
                   , mime-mail >= 0.4
+                  , mime-string
+                  , iconv
 
 
                        

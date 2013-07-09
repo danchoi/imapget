@@ -12,7 +12,7 @@ import qualified Network.Socket as S
 import Network.BSD                      ( getHostByName, defaultProtocol, hostAddress )
 import qualified Data.ByteString as B   ( hGetSome, hPut, null )
 import Control.Exception                ( bracket, finally, bracketOnError )
-import Control.Concurrent               ( killThread, takeMVar, MVar, ThreadId, newEmptyMVar, forkIOUnmasked
+import Control.Concurrent               ( killThread, takeMVar, MVar, ThreadId, newEmptyMVar, forkIOUnmasked, forkIO
                                         , putMVar
                                         )
 import Control.Monad                    ( liftM2 )
@@ -20,12 +20,16 @@ import qualified System.IO       as I   ( hClose, hSetBuffering, BufferMode(NoBu
 
 
 mapSSL :: FilePath -> PortNumber -> String -> PortNumber -> IO ()
-mapSSL cafile in_port out_host out_port = withSocketsDo$ withOpenSSL$ do
+mapSSL cafile in_port out_host out_port = withSocketsDo $ withOpenSSL $ do
+    putStrLn $ "listenOn " ++ (show in_port)
     bracket
       (N.listenOn (PortNumber in_port))
-      sClose
+      (\h -> do 
+        putStrLn $ "CLOSING socket "
+        sClose h)
       $ \sockin -> do
         (h,_,_) <- N.accept sockin
+        putStrLn "sockin "
         I.hSetBuffering h I.NoBuffering
         bracketOnError
           (socket AF_INET Stream defaultProtocol)
@@ -34,13 +38,17 @@ mapSSL cafile in_port out_host out_port = withSocketsDo$ withOpenSSL$ do
             he <- getHostByName out_host
             S.connect sout (SockAddrInet (fromIntegral out_port) (hostAddress he))
 
+            putStrLn "onnecting to socket"
+
             ctx <- SSL.context
             SSL.contextSetDefaultCiphers ctx
             SSL.contextSetVerificationMode ctx (SSL.VerifyPeer True False Nothing)
             SSL.contextSetCAFile ctx cafile
             bracket
               (SSL.connection ctx sout)
-              (flip SSL.shutdown SSL.Bidirectional)
+              (\ssl -> do 
+                  putStrLn "Shutting down"
+                  SSL.shutdown ssl SSL.Bidirectional)
               $ \ssl -> do
                 SSL.connect ssl
                 bracket
@@ -65,14 +73,15 @@ mapSSL cafile in_port out_host out_port = withSocketsDo$ withOpenSSL$ do
 myForkIO :: IO () -> IO (MVar (),ThreadId)
 myForkIO io = do
      m <- newEmptyMVar
-     t <- forkIOUnmasked (io `finally` putMVar m ())
+     t <- forkIO (io `finally` putMVar m ())
      return (m,t)
 
 
 
 main = do 
   let cafilePath = "/Users/choi/p/imapget/ca-certificates.crt"
-  putStrLn $ "Starting mapSSL on port " 
-  mapSSL cafilePath 3004 "localhost" (fromIntegral 3005)
+  putStrLn $ "Starting mapSSL on port 3004" 
+  mapSSL cafilePath 3004 "localhost" (fromIntegral 993)
+  putStrLn $ "DOne" 
 
 

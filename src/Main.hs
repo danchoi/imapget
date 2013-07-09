@@ -8,7 +8,7 @@ import qualified Data.ByteString.Char8 as C ( ByteString, putStrLn )
 import Data.Char                       ( isDigit )
 import Network.HaskellNet.IMAP.Connection as I  ( IMAPConnection )
 import Network.HaskellNet.IMAP   as I  ( list, select, search, SearchQuery(..), fetch
-                                       , connectIMAPPort, login 
+                                       , connectIMAPPort, login , capability, close, logout
                                        )
 import Network.Socket            as S  ( HostName, PortNumber )
 import System.Directory                ( canonicalizePath )
@@ -17,7 +17,12 @@ import System.Exit                     ( exitFailure )
 import System.IO                       ( Handle )
 import System.IO.Error                 ( isDoesNotExistError )
 
-import SSLWrap                         ( mapSSL )
+import SSLWrap                         ( mapSSL, myForkIO )
+
+import qualified Codec.MIME.String.QuotedPrintable as QP
+import qualified Codec.Text.IConv as Iconv
+import qualified Data.ByteString.Lazy.Char8 as BL
+import Control.Exception (bracket)
 
 
 main :: IO ()
@@ -96,14 +101,18 @@ data IMAPConf = IMAPConf
     , cafile :: String
     } deriving (Show)
 
+decodeUtf7 :: String -> String
+decodeUtf7 =
+  BL.unpack . (Iconv.convert "UTF-7" "UTF-8") . BL.pack 
+
 -- bad way to do different commands
 main' :: IMAPConf -> Maybe Label -> IO ()
 main' conf mlabel = do 
   case mlabel of
     Nothing -> do
         putStrLn$ "Fetching mailboxes ..."
-        withIMAP conf$ \ic -> do
-            I.list ic >>= mapM_ (putStrLn . show ) -- snd 
+        withIMAP conf $ \ic -> do
+            I.list ic >>= mapM_ (putStrLn . show . decodeUtf7 . snd) -- snd 
 
     Just label -> do
         putStrLn $ "Getting label " ++ label
@@ -134,9 +143,15 @@ withIMAP c action = do
   -- start imap communication
   threadDelay$ 500*1000
   putStrLn$ "Connecting to "++icHostname c++":"++show (icPort c)++" (wrapping with ssl through localhost:"++show (icSSLWrapPort c)++") ..."
-  ic <- connectIMAPPort "localhost" (icSSLWrapPort c)
-  putStrLn$ "Authenticating user "++icUsername c++" ..."
-  I.login ic (icUsername c) (icPasswd c)
-  action ic
+
+  bracket 
+    (connectIMAPPort "localhost" (icSSLWrapPort c))
+    I.logout
+    (\ic ->  do
+      putStrLn$ "Authenticating user "++icUsername c++" ..."
+      I.login ic (icUsername c) (icPasswd c)
+      action ic
+    )
+
 
 

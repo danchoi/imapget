@@ -149,6 +149,7 @@ sendCommand :: IMAPConnection -> String
             -> IO v
 sendCommand imapc cmdstr pFunc =
     do (buf, num) <- sendCommand' imapc cmdstr
+       BS.putStrLn buf
        let (resp, mboxUp, value) = eval pFunc (show6 num) buf
        case resp of
          OK _ _        -> do mboxUpdate imapc mboxUp
@@ -269,7 +270,10 @@ unsubscribe :: IMAPConnection -> MailboxName -> IO ()
 unsubscribe conn mboxname = sendCommand conn ("UNSUBSCRIBE " ++ mboxname) pNone
 
 list :: IMAPConnection -> IO [([Attribute], MailboxName)]
-list conn = (map (\(a, _, m) -> (a, m))) <$> listFull conn "\"\"" "*"
+list conn = do 
+    r <- listFull conn "\"\"" "*"
+    mapM_ (putStrLn.show) r
+    return $ (map (\(a, _, m) -> (a, m))) r
 
 lsub :: IMAPConnection -> IO [([Attribute], MailboxName)]
 lsub conn = (map (\(a, _, m) -> (a, m))) <$> lsubFull conn "\"\"" "*"

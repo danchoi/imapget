@@ -125,8 +125,7 @@ withIMAP c action = do
   -- launch thread for wrapping tcp with SSL
   cafilePath <- canonicalizePath (cafile c)
   putStrLn $ "Using cafile: "++cafilePath
-  putStrLn $ "Using conf: "++show c
-  -- _ <- mask_$ forkIO$ mapSSL cafilePath (icSSLWrapPort c) (icHostname c) (icPort c)
+  -- _ <- mask_$  mapSSL cafilePath (icSSLWrapPort c) (icHostname c) (icPort c)
   _ <- mask_$ forkIO$ mapSSL cafilePath (icSSLWrapPort c) (icHostname c) (icPort c)
   
   -- start imap communication

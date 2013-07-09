@@ -94,16 +94,18 @@ data IMAPConf = IMAPConf
     , icPasswd :: Password
     , icSSLWrapPort :: S.PortNumber
     , cafile :: String
-    }
+    } deriving (Show)
 
 main' :: IMAPConf -> Maybe Label -> IO ()
 main' conf mlabel = do 
   case mlabel of
     Nothing -> do
+        putStrLn$ "Fetching mailboxes ..."
         withIMAP conf$ \ic -> do
-            putStrLn$ "Fetching mailbox ..."
             I.list ic >>= mapM_ (putStrLn . snd)
-    Just label -> getEmails conf label C.putStrLn 
+    Just label -> do
+        putStrLn $ "Getting label " ++ label
+        getEmails conf label C.putStrLn 
 
 
 getEmails :: IMAPConf -> Label -> (B.ByteString -> IO a) -> IO ()
@@ -122,7 +124,8 @@ withIMAP :: IMAPConf -> (I.IMAPConnection Handle -> IO a) -> IO a
 withIMAP c action = do
   -- launch thread for wrapping tcp with SSL
   cafilePath <- canonicalizePath (cafile c)
-  putStrLn cafilePath
+  putStrLn $ "Using cafile: "++cafilePath
+  putStrLn $ "Using conf: "++show c
   -- _ <- mask_$ forkIO$ mapSSL cafilePath (icSSLWrapPort c) (icHostname c) (icPort c)
   _ <- mask_$ forkIO$ mapSSL cafilePath (icSSLWrapPort c) (icHostname c) (icPort c)
   

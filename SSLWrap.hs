@@ -7,7 +7,8 @@ import qualified OpenSSL.Session as SSL ( context, contextSetVerificationMode, c
 import OpenSSL                          ( withOpenSSL )
 import Network                   as N   ( listenOn, PortID(PortNumber), accept, PortNumber )
 import Network.Socket            as S   ( withSocketsDo, sClose, socket, Family(AF_INET), SocketType(Stream)
-                                        , connect, SockAddr(SockAddrInet) )
+                                        , connect, SockAddr(SockAddrInet))
+import qualified Network.Socket as S 
 import Network.BSD                      ( getHostByName, defaultProtocol, hostAddress )
 import qualified Data.ByteString as B   ( hGetSome, hPut, null )
 import Control.Exception                ( bracket, finally, bracketOnError )
@@ -70,5 +71,10 @@ myForkIO io = do
      return (m,t)
 
 
+
+main = do 
+  let cafilePath = "/Users/choi/p/imapget/ca-certificates.crt"
+  putStrLn $ "Starting mapSSL on port " 
+  mapSSL cafilePath 3004 "localhost" (fromIntegral 3005)
 
 

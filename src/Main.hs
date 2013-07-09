@@ -120,7 +120,7 @@ getEmails c label f = withIMAP c$ \ic -> do
        
 
 
-withIMAP :: IMAPConf -> (I.IMAPConnection Handle -> IO a) -> IO a
+withIMAP :: IMAPConf -> (I.IMAPConnection -> IO a) -> IO a
 withIMAP c action = do
   -- launch thread for wrapping tcp with SSL
   cafilePath <- canonicalizePath (cafile c)

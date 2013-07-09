@@ -41,7 +41,8 @@ source-repository this
 
 
 Executable imapget
-  main-is:          imapget.hs
+  Hs-Source-Dirs:   src
+  main-is:          Main.hs
   other-modules:     
                     SSLWrap
 

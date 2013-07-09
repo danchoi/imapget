@@ -49,10 +49,15 @@ Executable imapget
   build-depends:    base < 5
                   , bytestring
                   , directory
-                  , HaskellNet
                   , HsOpenSSL
                   , network
                   , text
+                  , old-time
+                  , array
+                  , base64-string
+                  , Crypto > 4.2.1
+                  , mime-mail >= 0.4
+
 
                        
   ghc-options:    -threaded -Wall

@@ -7,6 +7,9 @@ import Text.Regex.Posix
 import Control.Monad (replicateM)
 import Data.Maybe (catMaybes)
 import Control.Applicative ((<|>))
+import qualified Data.Binary as DB
+import qualified Data.ByteString.UTF8 as UTF8
+import Data.Char (chr)
 
 xs = ["&AOkA6QDp-", "&bElbVw-", "&bElbVw-/&byJbVw-"]
 
@@ -21,18 +24,15 @@ eitherIntVal = runGet (do
 intVal :: B.ByteString -> [Integer]
 intVal x = either error id (eitherIntVal x)
 
-charNums :: String -> [Integer]
-charNums = intVal . decodeLenient . B.pack
+charNums :: String -> [Int]
+charNums = map fromIntegral . intVal . decodeLenient . B.pack
 
 -- divides utf7 by word dividers 
 divide :: String -> [String]
 divide x = map shave $ getAllTextMatches $ x =~ "&([^-]*)-" :: [String]
     where shave s = drop 1 $ take (length s - 1) s 
 
-conv :: String -> [[Integer]]
-conv s = map (charNums) $ divide s
-
 main = do
     mapM_ (putStrLn.show. divide) xs
-    mapM_ (putStrLn.show. (map charNums) .divide) xs
+    mapM_ (\x -> mapM_ putStrLn x ) $ map (map (map chr . charNums) . divide) xs
 

@@ -21,8 +21,6 @@ eitherIntVal = runGet (do
     xs <- replicateM 5 (optional getWord16be)
     return $ map fromIntegral $ catMaybes xs)
 
-
-
 intVal :: B.ByteString -> [Integer]
 intVal x = either error id (eitherIntVal x)
 
@@ -40,7 +38,7 @@ special = do
   char '-'
   return $ (map chr . charNums)  x
 
-word' = (try plain) <|> special
+word' = plain <|> special
 
 parseUtf7Words :: GenParser Char st String
 parseUtf7Words = fmap concat (many1 word')

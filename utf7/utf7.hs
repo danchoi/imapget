@@ -5,7 +5,6 @@ import Data.Either (either)
 import Data.Serialize 
 import Data.ByteString.Base64
 import qualified Data.ByteString.Char8 as B
-import Text.Regex.Posix
 import Control.Monad (replicateM)
 import Data.Maybe (catMaybes)
 import Control.Applicative (optional)

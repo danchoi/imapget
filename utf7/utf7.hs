@@ -37,13 +37,13 @@ special = do
   char '-'
   return $ (map chr . charNums)  x
 
-word' = plain <|> special
+utf7Letter = plain <|> special
 
-parseUtf7Words :: GenParser Char st String
-parseUtf7Words = fmap concat (many1 word')
+utf7Letters :: GenParser Char st String
+utf7Letters = fmap concat (many1 utf7Letter)
 
 parseUtf7 :: String -> Either ParseError String
-parseUtf7 inp = parse parseUtf7Words "(unknown)" inp
+parseUtf7 inp = parse utf7Letters "(unknown)" inp
 
 main = do
 

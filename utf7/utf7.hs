@@ -1,15 +1,13 @@
 module Main where
 
-import Text.ParserCombinators.Parsec  hiding (optional)
+import Text.ParserCombinators.Parsec hiding (optional)
 import Data.Either (either)
-import Data.Serialize 
-import Data.ByteString.Base64
+import Data.Serialize (runGet, getWord16be)
+import Data.ByteString.Base64 (decodeLenient)
 import qualified Data.ByteString.Char8 as B
 import Control.Monad (replicateM)
 import Data.Maybe (catMaybes)
 import Control.Applicative (optional)
-import qualified Data.Binary as DB
-import qualified Data.ByteString.UTF8 as UTF8
 import Data.Char (chr)
 
 xs = ["&AOkA6QDp-", "&bElbVw-", "&bElbVw-/&byJbVw-"]

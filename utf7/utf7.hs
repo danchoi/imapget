@@ -1,15 +1,14 @@
 module Main where
 
-import Text.ParserCombinators.Parsec hiding ((<|>))
-
+import Text.ParserCombinators.Parsec  hiding (optional)
 import Data.Either (either)
-import Data.Serialize
+import Data.Serialize 
 import Data.ByteString.Base64
 import qualified Data.ByteString.Char8 as B
 import Text.Regex.Posix
 import Control.Monad (replicateM)
 import Data.Maybe (catMaybes)
-import Control.Applicative ((<|>))
+import Control.Applicative (optional)
 import qualified Data.Binary as DB
 import qualified Data.ByteString.UTF8 as UTF8
 import Data.Char (chr)
@@ -19,7 +18,7 @@ xs = ["&AOkA6QDp-", "&bElbVw-", "&bElbVw-/&byJbVw-"]
 
 eitherIntVal :: B.ByteString -> Either String [Integer]
 eitherIntVal = runGet (do 
-    xs <- replicateM 5 (Just `fmap` getWord16be <|> return Nothing)
+    xs <- replicateM 5 (optional getWord16be)
     return $ map fromIntegral $ catMaybes xs)
 
 

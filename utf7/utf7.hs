@@ -1,4 +1,7 @@
 module Main where
+
+import Text.ParserCombinators.Parsec hiding ((<|>))
+
 import Data.Either (either)
 import Data.Serialize
 import Data.ByteString.Base64
@@ -27,12 +30,29 @@ intVal x = either error id (eitherIntVal x)
 charNums :: String -> [Int]
 charNums = map fromIntegral . intVal . decodeLenient . B.pack
 
--- divides utf7 by word dividers 
-divide :: String -> [String]
-divide x = map shave $ getAllTextMatches $ x =~ "&([^-]*)-" :: [String]
-    where shave s = drop 1 $ take (length s - 1) s 
+
+plain :: GenParser Char st String
+plain = many1 (noneOf "&")
+
+special :: GenParser Char st String
+special = do
+  char '&'
+  x <- many (noneOf "-")
+  char '-'
+  return $ (map chr . charNums)  x
+
+word' = (try plain) <|> special
+
+parseUtf7Words :: GenParser Char st String
+parseUtf7Words = fmap concat (many1 word')
+
+parseUtf7 :: String -> Either ParseError String
+parseUtf7 inp = parse parseUtf7Words "(unknown)" inp
 
 main = do
-    mapM_ (putStrLn.show. divide) xs
-    mapM_ (\x -> mapM_ putStrLn x ) $ map (map (map chr . charNums) . divide) xs
+
+    mapM_ (\x ->  do
+        let r = either (error . show) id $ parseUtf7 x 
+        putStrLn r
+      ) xs
 

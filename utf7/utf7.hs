@@ -43,7 +43,7 @@ utf7Letters :: GenParser Char st String
 utf7Letters = fmap concat (many1 utf7Letter)
 
 parseUtf7 :: String -> Either ParseError String
-parseUtf7 inp = parse utf7Letters "(unknown)" inp
+parseUtf7 = parse utf7Letters "(unknown)" 
 
 main = do
 

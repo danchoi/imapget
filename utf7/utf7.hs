@@ -24,6 +24,7 @@ intVal x = either error id (eitherIntVal x)
 charNums :: String -> [Int]
 charNums = map fromIntegral . intVal . decodeLenient . B.pack
 
+-- parsec functions
 
 plain :: GenParser Char st String
 plain = many1 (noneOf "&")
